@@ -346,6 +346,27 @@ uint32_t KeyPressTick[NUM_OF_KEY_BUFFERS];
 
 void PushButtonInterrupt(uint16_t GPIO_Pin)
 {
+	/**
+	 ******************************************************************************
+	 *	Function	:	PushButtonInterrupt
+	 *	Brief		:	Push Button Interrupt Handler.
+	 *	Created on	:	Oct 12, 2021
+	 *	Author		:	William, An.
+	 *	Email		:	ponytail2k@gmail.com
+	 ******************************************************************************
+	 *
+	 * Copyright (c) 2021 Lee & An Partners Co., Ltd. All rights reserved.
+	 *
+	 * You SHOULD NOT REMOVE this comment.
+	 *
+	 * This software component is licensed by Lee & An Partners under BSD 3-Clause license,
+	 * the "License"; You may not use this function except in compliance with the
+	 * License. You may obtain a copy of the License at:
+	 *
+	 *                        opensource.org/licenses/BSD-3-Clause
+	 *
+	 ******************************************************************************
+	 */
 	curKeyTick = osKernelSysTick();
 
 	if (HAL_GPIO_ReadPin(PushButton_GPIO_Port, GPIO_Pin) & GPIO_PIN_SET) {
@@ -359,6 +380,27 @@ void PushButtonInterrupt(uint16_t GPIO_Pin)
 
 void KeyThread(ULONG argument)
 {
+	/**
+	 ******************************************************************************
+	 *	Function	:	Push Button Key Thread
+	 *	Brief		:	Inform the Key event to other thread.
+	 *	Created on	:	Oct 12, 2021
+	 *	Author		:	William, An.
+	 *	Email		:	ponytail2k@gmail.com
+	 ******************************************************************************
+	 *
+	 * Copyright (c) 2021 Lee & An Partners Co., Ltd. All rights reserved.
+	 *
+	 * You SHOULD NOT REMOVE this comment.
+	 *
+	 * This software component is licensed by Lee & An Partners under BSD 3-Clause license,
+	 * the "License"; You may not use this function except in compliance with the
+	 * License. You may obtain a copy of the License at:
+	 *
+	 *                        opensource.org/licenses/BSD-3-Clause
+	 *
+	 ******************************************************************************
+	 */
 	uint32_t KeyEvtInfo;
 	uint32_t curKeyTick;
 	osEvent KeyEvent;
