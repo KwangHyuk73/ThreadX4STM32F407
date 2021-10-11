@@ -67,6 +67,8 @@ extern "C" {
 extern void _tx_timer_interrupt(void);
 extern void __tx_PendSVHandler(void);
 
+extern void PushButtonInterrupt(uint16_t GPIO_Pin);
+
 extern void (*TST_IRQHandler) (void);
 /* USER CODE END ET */
 
@@ -77,7 +79,14 @@ extern void (*TST_IRQHandler) (void);
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-
+//////////////////////////////////////////////////
+// Define for Push Button Key handle algorithm
+//////////////////////////////////////////////////
+#define MULTI_SHORT_KEY1_COUNT	(5-1)
+#define MULTI_SHORT_KEY2_COUNT	(7-1)
+#define NUM_OF_KEY_BUFFERS		10
+#define	NUM_OF_KEY_MSGQ			2
+#define KEY_PROCESSING_TIMEOUT	2000		// 2000ms
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
@@ -88,6 +97,9 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define PushButton_Pin GPIO_PIN_0
+#define PushButton_GPIO_Port GPIOA
+#define PushButton_EXTI_IRQn EXTI0_IRQn
 #define OrangeLED_Pin GPIO_PIN_12
 #define OrangeLED_GPIO_Port GPIOD
 #define GreenLED_Pin GPIO_PIN_13
@@ -98,6 +110,14 @@ void Error_Handler(void);
 #define EINT7_GPIO_Port GPIOC
 #define EINT7_EXTI_IRQn EXTI9_5_IRQn
 /* USER CODE BEGIN Private defines */
+typedef enum {
+	NoEvent			= 0,
+	// Key Event
+	SingleShortKey	= 1,
+	MultiShortKey1	= 2,
+	MultiShortKey2	= 3,
+	SingleLongKey	= 4,
+} eEvent;
 
 /* USER CODE END Private defines */
 

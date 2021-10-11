@@ -66,7 +66,7 @@ typedef struct {                              // Message object structure
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-TIM_HandleTypeDef htim8;
+ETH_HandleTypeDef heth;
 
 UART_HandleTypeDef huart3;
 
@@ -84,6 +84,7 @@ osMutexId		MutexId;
 osSemaphoreId	SemaphoreId;								// Semaphore ID
 osPoolId  		MemPoolId;
 osMessageQId	MsgQId;
+osMessageQId	PushButtonMsgQID;
 osMailQId		MailQId;
 
 osThreadId txMainId;
@@ -115,11 +116,15 @@ ULONG thread_9_counter;
 ULONG thread_9_mail_received;
 
 // prototypes for timer callback function
-void OneShotTimerCallback(ULONG arg);
-void PeriodicTimerCallback(ULONG arg);
+void OneShotTimerCallback(ULONG timer_input);
+void PeriodicTimerCallback(ULONG timer_input);
+
 
 // Define thread prototypes.
 void txMainThread(ULONG thread_input);
+void AdcThread(ULONG thread_input);
+void KeyThread(ULONG thread_input);
+void LedThread(ULONG thread_input);
 void Thread0(ULONG thread_input);
 void Thread1(ULONG thread_input);
 void Thread2(ULONG thread_input);
@@ -134,7 +139,7 @@ void Thread9(ULONG thread_input);
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
-static void MX_TIM8_Init(void);
+static void MX_ETH_Init(void);
 /* USER CODE BEGIN PFP */
 /* USER CODE END PFP */
 
@@ -146,6 +151,15 @@ void EnterInterrupt(void)
 }
 
 void ExitInterrupt(void)
+{
+	HAL_GPIO_WritePin(IntGen_GPIO_Port, IntGen_Pin, GPIO_PIN_SET);
+}
+void PushButtonRelease(void)
+{
+	HAL_GPIO_WritePin(IntGen_GPIO_Port, IntGen_Pin, GPIO_PIN_RESET);
+}
+
+void PushButtonPress(void)
 {
 	HAL_GPIO_WritePin(IntGen_GPIO_Port, IntGen_Pin, GPIO_PIN_SET);
 }
@@ -194,6 +208,10 @@ VOID tx_application_define(VOID *first_unused_memory)
     	osMessageQDef(MsgQ, 16, sMeasure*);              // Define message queue
     	MsgQId = osMessageCreate(osMessageQ(MsgQ), NULL);
 
+    	//  Create Push Button Message Key
+    	osMessageQDef(PushButtonMsgQ, NUM_OF_KEY_MSGQ, uint32_t);              // Define message queue
+    	PushButtonMsgQID = osMessageCreate(osMessageQ(PushButtonMsgQ), NULL);
+
     	//  Create semaphore
     	osSemaphoreDef(Semaphore);                       // Semaphore definition
     	SemaphoreId = osSemaphoreCreate(osSemaphore(Semaphore), 1);
@@ -208,6 +226,10 @@ VOID tx_application_define(VOID *first_unused_memory)
     	//	Create Main thread
     	osThreadDef(txMain, txMainThread, TX_THREAD_STACK_SIZE, osPriorityNormal);
     	txMainId = osThreadCreate(osThread(txMain), (void *)0);
+
+    	//	Create PushButton thread
+    	osThreadDef(txPushButton, KeyThread, TX_THREAD_STACK_SIZE, osPriorityNormal);
+    	txMainId = osThreadCreate(osThread(txPushButton), (void *)0);
 
     	//	Create Thread 0
     	osThreadDef(Thread0, Thread0, TX_THREAD_STACK_SIZE, osPriorityNormal);
@@ -253,30 +275,148 @@ VOID tx_application_define(VOID *first_unused_memory)
 
 
 /* Define the txMainThread threads.  */
-void txMainThread(ULONG argument)
+void txMainThread(ULONG thread_input)
 {
-	kprintf("txMainThread()\r\n");
-
 	osTimerStart(OneShotTmrId, TX_ZERO);                // start timer
 	osTimerStart(PeriodicTmrId, TX_ZERO);                // start timer
 
 	/* This thread simply sits in while-forever-sleep loop.  */
 	while (1) {
 		kprintf("Hello, ThreadX!\r\n");
-		osDelay(10000);
+		osDelay(1000);
+		PushButtonPress();	// Single Short Key
+		osDelay(90);
+		PushButtonRelease();
+		osDelay(110);
+		PushButtonPress();
+		osDelay(90);
+		PushButtonRelease();
+		osDelay(110);
+		PushButtonPress();
+		osDelay(90);
+		PushButtonRelease();
+		osDelay(110);
+		PushButtonPress();
+		osDelay(90);
+		PushButtonRelease();
+		osDelay(110);
+		PushButtonPress();		// Multi Short Key 1
+		osDelay(90);
+		PushButtonRelease();
+		osDelay(110);
+
+		PushButtonPress();
+		osDelay(90);
+		PushButtonRelease();
+		osDelay(110);
+		PushButtonPress();		// Multi Short Key 2
+		osDelay(90);
+		PushButtonRelease();
+		osDelay(110);
+
+		osDelay(1000);
+
+		PushButtonPress();		// Single Long Key
+		osDelay(2200);
+		PushButtonRelease();
+		osDelay(300);
 	}
 }
 
-void OneShotTimerCallback(ULONG arg)
+void OneShotTimerCallback(ULONG timer_input)
 {                   										// timer callback function
-	kprintf("OST(%d)\r\n", arg);							// arg contains &exec
+	kprintf("OST(%d)\r\n", timer_input);							// arg contains &exec
 }
 
-void PeriodicTimerCallback(ULONG arg)
+void PeriodicTimerCallback(ULONG timer_input)
 {
-	kprintf("PT(%d)\r\n", arg);							// arg contains &exec
+	kprintf("PT(%d)\r\n", timer_input);							// arg contains &exec
     // called every 10 seconds after osTimerStart
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Key Thread
+///////////////////////////////////////////////////////////////////////////////////////////////
+uint8_t KeyPressed = GPIO_PIN_RESET;
+uint8_t ucKeyIndex = (uint8_t)TX_ZERO;
+uint32_t FirstKeyTick = (uint32_t)TX_ZERO;
+uint32_t curKeyTick = (uint32_t)TX_ZERO;
+uint32_t KeyPressTick[NUM_OF_KEY_BUFFERS];
+
+void PushButtonInterrupt(uint16_t GPIO_Pin)
+{
+	curKeyTick = osKernelSysTick();
+
+	if (HAL_GPIO_ReadPin(PushButton_GPIO_Port, GPIO_Pin) & GPIO_PIN_SET) {
+		KeyPressed = GPIO_PIN_SET;
+		KeyPressTick[ucKeyIndex] = curKeyTick;
+		osMessagePut(PushButtonMsgQID, (uint32_t)SingleShortKey, 0);
+	} else {
+		KeyPressed = GPIO_PIN_RESET;
+	}
+}
+
+void KeyThread(ULONG argument)
+{
+	uint32_t KeyEvtInfo;
+	uint32_t curKeyTick;
+	osEvent KeyEvent;
+
+	memset(&KeyPressTick[0], 0, sizeof(uint32_t)*NUM_OF_KEY_BUFFERS);
+
+	for ( ; ; ) {
+		KeyEvent = osMessageGet(PushButtonMsgQID, 100);
+
+		curKeyTick = osKernelSysTick();
+
+        if (KeyEvent.status == osEventMessage) {
+        	// Receive Key
+        	KeyEvtInfo = KeyEvent.value.v;
+
+        	// Key handle
+        	if (KeyEvtInfo == SingleShortKey) {
+            	if (ucKeyIndex == 0) {			        						// Check First Single Short Key
+            		kprintf("SSK\r\n");
+            		FirstKeyTick = KeyPressTick[0];
+            	} else if (ucKeyIndex == MULTI_SHORT_KEY1_COUNT) {				// Check Multi Short Key
+            		if ((KeyPressTick[MULTI_SHORT_KEY1_COUNT] - FirstKeyTick) < KEY_PROCESSING_TIMEOUT) {
+            			kprintf("MSK1\r\n");
+            			KeyEvtInfo = (uint32_t)MultiShortKey1;
+            		}
+            	} else if (ucKeyIndex == MULTI_SHORT_KEY2_COUNT) {
+            		if ((KeyPressTick[MULTI_SHORT_KEY2_COUNT] - FirstKeyTick) < KEY_PROCESSING_TIMEOUT) {
+            			kprintf("MSK2\r\n");
+            			KeyEvtInfo = (uint32_t)MultiShortKey2;
+            			ucKeyIndex = 0;
+            			FirstKeyTick = 0;
+            		}
+            	}
+            	ucKeyIndex++;
+        	}
+        } else if (KeyEvent.status == osEventTimeout) {							// Check Single Long Key - Timeout
+    		// Handle Single Long Key Timeout
+        	if (ucKeyIndex != 0) {	// Key handling state
+        		// over 2000ms... : Key input timeout occur!!!
+        		if ((curKeyTick - FirstKeyTick) > KEY_PROCESSING_TIMEOUT) {
+            		// Still key is pressed,
+                	if (((curKeyTick - KeyPressTick[ucKeyIndex-1]) > KEY_PROCESSING_TIMEOUT) && (KeyPressed == 1)) {
+                		kprintf("SLK\r\n");
+                		KeyEvtInfo = (uint32_t)SingleLongKey;
+            			ucKeyIndex = 0;							// Timeout : previous key clear
+            			FirstKeyTick = 0;
+                	}
+
+                	if (KeyPressed == 0) {
+            			ucKeyIndex = 0;							// Timeout : previous key clear
+            			FirstKeyTick = 0;
+                	}
+        		}
+        	}
+        }
+	}
+}
+
 
 void Thread0(ULONG thread_input)
 {
@@ -609,7 +749,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART3_UART_Init();
-  MX_TIM8_Init();
+  MX_ETH_Init();
   /* USER CODE BEGIN 2 */
 
   kprintf("%s %s %s\r\n", osKernelSystemId, __DATE__, __TIME__);
@@ -674,48 +814,49 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief TIM8 Initialization Function
+  * @brief ETH Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM8_Init(void)
+static void MX_ETH_Init(void)
 {
 
-  /* USER CODE BEGIN TIM8_Init 0 */
+  /* USER CODE BEGIN ETH_Init 0 */
 
-  /* USER CODE END TIM8_Init 0 */
+  /* USER CODE END ETH_Init 0 */
 
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
+   static uint8_t MACAddr[6];
 
-  /* USER CODE BEGIN TIM8_Init 1 */
+  /* USER CODE BEGIN ETH_Init 1 */
 
-  /* USER CODE END TIM8_Init 1 */
-  htim8.Instance = TIM8;
-  htim8.Init.Prescaler = 0;
-  htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim8.Init.Period = 65535;
-  htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim8.Init.RepetitionCounter = 0;
-  htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim8) != HAL_OK)
+  /* USER CODE END ETH_Init 1 */
+  heth.Instance = ETH;
+  heth.Init.AutoNegotiation = ETH_AUTONEGOTIATION_ENABLE;
+  heth.Init.Speed = ETH_SPEED_100M;
+  heth.Init.DuplexMode = ETH_MODE_FULLDUPLEX;
+  heth.Init.PhyAddress = DP83848_PHY_ADDRESS;
+  MACAddr[0] = 0x00;
+  MACAddr[1] = 0x17;
+  MACAddr[2] = 0xA1;
+  MACAddr[3] = 0x00;
+  MACAddr[4] = 0x00;
+  MACAddr[5] = 0x01;
+  heth.Init.MACAddr = &MACAddr[0];
+  heth.Init.RxMode = ETH_RXINTERRUPT_MODE;
+  heth.Init.ChecksumMode = ETH_CHECKSUM_BY_HARDWARE;
+  heth.Init.MediaInterface = ETH_MEDIA_INTERFACE_RMII;
+
+  /* USER CODE BEGIN MACADDRESS */
+
+  /* USER CODE END MACADDRESS */
+
+  if (HAL_ETH_Init(&heth) != HAL_OK)
   {
     Error_Handler();
   }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim8, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim8, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM8_Init 2 */
+  /* USER CODE BEGIN ETH_Init 2 */
 
-  /* USER CODE END TIM8_Init 2 */
+  /* USER CODE END ETH_Init 2 */
 
 }
 
@@ -764,14 +905,21 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, OrangeLED_Pin|GreenLED_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(IntGen_GPIO_Port, IntGen_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin : PushButton_Pin */
+  GPIO_InitStruct.Pin = PushButton_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(PushButton_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : OrangeLED_Pin GreenLED_Pin */
   GPIO_InitStruct.Pin = OrangeLED_Pin|GreenLED_Pin;
@@ -794,6 +942,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(EINT7_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 

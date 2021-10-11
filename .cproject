@@ -50,6 +50,8 @@
 									<listOptionValue builtIn="false" value="../Middlewares/Third_Party/ThreadX/CMSIS_RTOS"/>
 									<listOptionValue builtIn="false" value="../Middlewares/Third_Party/ThreadX/common/inc"/>
 									<listOptionValue builtIn="false" value="../Middlewares/Third_Party/ThreadX/ports/cortex_m4/inc"/>
+									<listOptionValue builtIn="false" value="../Middlewares/Third_Party/NetXDuo/common/inc"/>
+									<listOptionValue builtIn="false" value="../Middlewares/Third_Party/NetXDuo/ports/cortex_m4/inc"/>
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.646401851" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
 							</tool>
