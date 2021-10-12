@@ -357,13 +357,19 @@ void PushButtonInterrupt(uint16_t GPIO_Pin)
 	 *
 	 * Copyright (c) 2021 Lee & An Partners Co., Ltd. All rights reserved.
 	 *
-	 * You SHOULD NOT REMOVE this comment.
-	 *
 	 * This software component is licensed by Lee & An Partners under BSD 3-Clause license,
 	 * the "License"; You may not use this function except in compliance with the
 	 * License. You may obtain a copy of the License at:
 	 *
 	 *                        opensource.org/licenses/BSD-3-Clause
+	 *
+	 ******************************************************************************
+	 *
+	 * You SHOULD NOT REMOVE this comment.
+	 *
+	 * Visit YouTube Digital Museum!
+	 *
+	 *	https://www.youtube.com/channel/UCRpYzfU_JGjlWTY0si9HEMA
 	 *
 	 ******************************************************************************
 	 */
@@ -391,13 +397,19 @@ void KeyThread(ULONG argument)
 	 *
 	 * Copyright (c) 2021 Lee & An Partners Co., Ltd. All rights reserved.
 	 *
-	 * You SHOULD NOT REMOVE this comment.
-	 *
 	 * This software component is licensed by Lee & An Partners under BSD 3-Clause license,
 	 * the "License"; You may not use this function except in compliance with the
 	 * License. You may obtain a copy of the License at:
 	 *
 	 *                        opensource.org/licenses/BSD-3-Clause
+	 *
+	 ******************************************************************************
+	 *
+	 * You SHOULD NOT REMOVE this comment.
+	 *
+	 * Visit YouTube Digital Museum!
+	 *
+	 *	https://www.youtube.com/channel/UCRpYzfU_JGjlWTY0si9HEMA
 	 *
 	 ******************************************************************************
 	 */
