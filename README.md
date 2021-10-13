@@ -8,6 +8,6 @@ I don't want to help academic homework.
 
 email : ponytail2k@gmail.com
 
-Youtube
+Explain is in YouTube
 
-https://youtu.be/ZBpActqK2Ss
+https://www.youtube.com/watch?v=ZBpActqK2Ss
