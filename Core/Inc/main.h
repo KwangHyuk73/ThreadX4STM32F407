@@ -100,6 +100,8 @@ void Error_Handler(void);
 #define PushButton_Pin GPIO_PIN_0
 #define PushButton_GPIO_Port GPIOA
 #define PushButton_EXTI_IRQn EXTI0_IRQn
+#define BL_PWM_Pin GPIO_PIN_0
+#define BL_PWM_GPIO_Port GPIOB
 #define OrangeLED_Pin GPIO_PIN_12
 #define OrangeLED_GPIO_Port GPIOD
 #define GreenLED_Pin GPIO_PIN_13
